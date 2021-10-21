@@ -1,0 +1,68 @@
+* Using https://github.com/endticket/cctalk library, write device emulator module
+	* Device definition must include:
+		- Equipment category id (Coin Acceptor)
+		- product code triple
+		- build code
+		- manufacturer id
+		- serial number
+		- software revision
+		- comms revision
+		- coin type/value
+	
+	* Minimum functionality implementation
+		- Simple poll
+			Request: 254 - data: NONE
+			Response: ACK
+		- Perform self-check
+			Request: 232 - data: NONE
+			Response: ACK | (fault code)
+		- Request equipment category id
+			Request: 245 - data: NONE
+			Response: "Coin Acceptor" in ASCII
+		- Request product code
+			Request: 244 - data: NONE
+			Response: "Emulator" in ASCII
+		- Request build code
+			Request: 192 - data: NONE
+			Response: Arbitrary ASCII
+		- Request manufacturer id
+			Request: 246 - data: NONE
+			Response: "PAF" in ASCII
+		- Request serial number
+			Request: 242 - data: NONE
+			Response: 3 bytes in binary form, LSB first
+		- Request software revision
+			Request: 241 - data: NONE
+			Response: Arbitrary ASCII
+		- Request comms revision
+			Request: 4 - data: NONE
+			Response: [1][4][4]
+		- Modify inhibit status
+			Request: 231 - data: 2 byte bitmask
+			Response: ACK
+		- Request inhibit status
+			Request: 230 - data: NONE
+			Response: 2 byte bitmask
+		- Modify master inhibit status
+			Request: 228 - data: <0=inhibited|1=normal operation>
+			Response: ACK
+		- Request master inhibit status
+			Request: 227 - data: NONE
+			Response: <0=inhibited|1=normal operation>
+		- Request coin id
+			Request: 184 - data: 1 byte coin position
+			Response: ASCII
+		- Read buffered credit or error codes
+			Request: 229 - data: NONE
+			Response: 11 bytes [ event counter ]
+				[ result 1A ] [ result 1B ]
+				[ result 2A ] [ result 2B ]
+				[ result 3A ] [ result 3B ]
+				[ result 4A ] [ result 4B ]
+				[ result 5A ] [ result 5B ]
+		- Request data storage availability
+			Request: 216 - data: NONE
+			Response: [0][0][0][0][0] = not implemented
+		- Reset device
+			Request: 1 - data: NONE
+			Response: ACK
