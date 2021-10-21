@@ -1,10 +1,10 @@
 use serial::prelude::*;
 use std;
-use std::io::{Write, Read};
-use std::error::Error;
+use std::io::{Read, Write};
+// use std::error::Error;
+use std::convert;
 use std::io::ErrorKind::TimedOut;
 use std::time::Duration;
-use std::convert;
 
 use protocol::*;
 
@@ -37,8 +37,12 @@ impl Clone for ClientError {
     fn clone(&self) -> Self {
         match self {
             &ClientError::CCTalkError(ref e) => ClientError::CCTalkError(e.clone()),
-            &ClientError::IOError(ref e) => ClientError::IOError(std::io::Error::new(e.kind(), e.description())),
-            &ClientError::SerialError(ref e) => ClientError::SerialError(serial::Error::new(e.kind(), e.description())),
+            &ClientError::IOError(ref e) => {
+                ClientError::IOError(std::io::Error::new(e.kind(), e.to_string()))
+            }
+            &ClientError::SerialError(ref e) => {
+                ClientError::SerialError(serial::Error::new(e.kind(), e.to_string()))
+            }
         }
     }
 }
@@ -47,6 +51,8 @@ pub trait CCTalkClient {
     fn send_and_check_reply(&mut self, msg: &Message) -> Result<Payload, ClientError>;
     fn get_address(&self) -> Address;
     fn set_bill_event(&mut self, bill_event: BillEvent);
+    fn read_messages(&mut self) -> Result<Vec<Message>, ClientError>;
+    fn send_message(&mut self, msg: &Message) -> Result<(), ClientError>;
 }
 
 pub struct SerialClient {
@@ -57,23 +63,30 @@ pub struct SerialClient {
 
 #[allow(dead_code)]
 impl SerialClient {
-    pub fn new(port_name: &String, serial_settings: &serial::PortSettings) -> Result<SerialClient, ClientError> {
+    pub fn new(
+        port_name: &String,
+        serial_settings: &serial::PortSettings,
+        address: Address,
+    ) -> Result<SerialClient, ClientError> {
         let mut port_temp = serial::open(&port_name)?;
 
         port_temp.configure(&serial_settings)?;
 
         Ok(SerialClient {
-               port: port_temp,
-               address: 1,
-               buffer: Vec::<u8>::new(),
-           })
+            port: port_temp,
+            address: address,
+            buffer: Vec::<u8>::new(),
+        })
     }
 
-
-    fn read_and_decode(&mut self, received: &mut Vec<u8>, messages: &mut Vec<Message>) -> Result<(), ClientError> {
+    fn read_and_decode(
+        &mut self,
+        received: &mut Vec<u8>,
+        messages: &mut Vec<Message>,
+    ) -> Result<(), ClientError> {
         // debug!("Received: {:?}", received);
         self.buffer.append(received);
-        // debug!("Buffer: {:?}", self.buffer);
+        // println!("Buffer: {:?}", self.buffer);
 
         // decode will leave the remaining stuff in the buffer
         let decode_res = Message::decode(&mut self.buffer);
@@ -83,12 +96,12 @@ impl SerialClient {
                     messages.push(message);
                     Ok(())
                 } else {
-                    // debug!("message to another recipient ignored");
+                    //println!("message to another recipient ignored");
                     Ok(())
                 }
             }
             Err(ErrorType::PartialMessage) => {
-                // debug!("Partial message");
+                //println!("Partial message");
                 Ok(())
             }
             Err(e) => Err(ClientError::CCTalkError(e)),
@@ -122,14 +135,13 @@ impl SerialClient {
     }
 
     fn read(&mut self) -> Result<Vec<Message>, ClientError> {
-
         let mut messages = Vec::<Message>::new();
 
         let mut counter = 0;
 
         while (messages.len() < 1) && (counter < 80) {
             let mut received = self.read_from_serial()?;
-            // debug!("Received on serial: {:?}", received);
+            //println!("Received on serial: {:?} Counter: {}", received, counter);
             self.read_and_decode(&mut received, &mut messages)?;
             counter += 1;
         }
@@ -140,7 +152,9 @@ impl SerialClient {
     fn read_all(&mut self, timeout: u64) -> Result<Vec<Message>, ClientError> {
         let old_timeout = self.port.timeout();
 
-        self.port.set_timeout(Duration::from_millis(timeout)).unwrap();
+        self.port
+            .set_timeout(Duration::from_millis(timeout))
+            .unwrap();
 
         let mut messages = Vec::<Message>::new();
 
@@ -157,7 +171,6 @@ impl SerialClient {
         self.port.set_timeout(old_timeout).unwrap();
 
         Ok(messages)
-
     }
 }
 
@@ -176,7 +189,10 @@ impl CCTalkClient for SerialClient {
             }
         } else {
             if self.buffer.len() != 0 {
-                debug!("Message not received in time, clearing partial message from buffer: {:?}", self.buffer);
+                debug!(
+                    "Message not received in time, clearing partial message from buffer: {:?}",
+                    self.buffer
+                );
                 self.buffer.clear();
             }
             Err(ClientError::CCTalkError(ErrorType::NoResponse))
@@ -188,6 +204,14 @@ impl CCTalkClient for SerialClient {
     }
 
     fn set_bill_event(&mut self, _: BillEvent) {}
+
+    fn read_messages(&mut self) -> Result<Vec<Message>, ClientError> {
+        self.read()
+    }
+
+    fn send_message(&mut self, msg: &Message) -> Result<(), ClientError> {
+        Ok(self.send(&msg)?)
+    }
 }
 
 pub struct DummyClient {
@@ -219,16 +243,14 @@ impl CCTalkClient for DummyClient {
                 }
 
                 Ok(Payload {
-                       header: HeaderType::Reply,
-                       data: vec![self.counter, byte1, byte2],
-                   })
+                    header: HeaderType::Reply,
+                    data: vec![self.counter, byte1, byte2],
+                })
             }
-            _ => {
-                Ok(Payload {
-                       header: HeaderType::Reply,
-                       data: vec![],
-                   })
-            }
+            _ => Ok(Payload {
+                header: HeaderType::Reply,
+                data: vec![],
+            }),
         }
     }
 
@@ -239,5 +261,13 @@ impl CCTalkClient for DummyClient {
     fn set_bill_event(&mut self, bill_event: BillEvent) {
         self.bill_event = bill_event;
         self.changed = true;
+    }
+
+    fn read_messages(&mut self) -> Result<Vec<Message>, ClientError> {
+        Ok(Vec::<Message>::new())
+    }
+
+    fn send_message(&mut self, _msg: &Message) -> Result<(), ClientError> {
+        Ok(())
     }
 }
