@@ -278,8 +278,9 @@ impl CCTalkEmu {
             }
             HeaderType::ReadBufferedCreditOrErrorCodes => {
                 let mut data: Vec<u8> = vec![];
+                let mut buffer = self.credit_buffer.clone();
                 data.push(self.counter);
-                data.append(self.credit_buffer.as_mut());
+                data.append(&mut buffer);
 
                 //println!("Data: {:?}", data);
                 //println!("CB: {:?}", self.credit_buffer);
