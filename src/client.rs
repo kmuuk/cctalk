@@ -1,4 +1,4 @@
-use serial::prelude::*;
+use serialport;
 use std;
 use std::io::{Read, Write};
 // use std::error::Error;
@@ -11,12 +11,12 @@ use protocol::*;
 #[derive(Debug)]
 pub enum ClientError {
     CCTalkError(ErrorType),
-    SerialError(serial::Error),
+    SerialError(serialport::Error),
     IOError(std::io::Error),
 }
 
-impl convert::From<serial::Error> for ClientError {
-    fn from(e: serial::Error) -> ClientError {
+impl convert::From<serialport::Error> for ClientError {
+    fn from(e: serialport::Error) -> ClientError {
         ClientError::SerialError(e)
     }
 }
@@ -41,7 +41,7 @@ impl Clone for ClientError {
                 ClientError::IOError(std::io::Error::new(e.kind(), e.to_string()))
             }
             &ClientError::SerialError(ref e) => {
-                ClientError::SerialError(serial::Error::new(e.kind(), e.to_string()))
+                ClientError::SerialError(serialport::Error::new(e.kind(), e.to_string()))
             }
         }
     }
@@ -56,7 +56,7 @@ pub trait CCTalkClient {
 }
 
 pub struct SerialClient {
-    port: serial::SystemPort,
+    port: Box<dyn serialport::SerialPort>,
     pub address: Address,
     buffer: Vec<u8>,
 }
@@ -65,12 +65,10 @@ pub struct SerialClient {
 impl SerialClient {
     pub fn new(
         port_name: &String,
-        serial_settings: &serial::PortSettings,
+        serial_baud: u32,
         address: Address,
     ) -> Result<SerialClient, ClientError> {
-        let mut port_temp = serial::open(&port_name)?;
-
-        port_temp.configure(&serial_settings)?;
+        let port_temp = serialport::new(port_name, serial_baud).open()?;
 
         Ok(SerialClient {
             port: port_temp,
@@ -206,11 +204,16 @@ impl CCTalkClient for SerialClient {
     fn set_bill_event(&mut self, _: BillEvent) {}
 
     fn read_messages(&mut self) -> Result<Vec<Message>, ClientError> {
-        self.read()
+        self.read_all(1)
     }
 
     fn send_message(&mut self, msg: &Message) -> Result<(), ClientError> {
-        Ok(self.send(&msg)?)
+        let send_result = self.send(&msg);
+        self.buffer.clear();
+        match send_result {
+            Ok(r) => Ok(r),
+            Err(e) => Err(ClientError::IOError(e))
+        }
     }
 }
 

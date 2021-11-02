@@ -915,6 +915,7 @@ impl Message {
                 checksum_type = ChecksumType::CRCChecksum;
                 source = 1; // Source address is always 1 in CRC mode
             } else {
+                debug!("Failed raw: {:?}", raw_msg);
                 return Err(ErrorType::ChecksumError);
             }
         }

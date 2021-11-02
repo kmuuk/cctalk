@@ -1,6 +1,6 @@
 #[macro_use]
 extern crate log;
-extern crate serial;
+extern crate serialport;
 
 pub mod client;
 pub mod device;
