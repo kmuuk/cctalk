@@ -11,14 +11,13 @@ pub struct CCTalkDevice {
 #[allow(dead_code)]
 impl CCTalkDevice {
     pub fn new(
-        port_name: &String,
-        serial_baud: u32,
+        port: Box<dyn serialport::SerialPort>,
         address: Address,
         checksum_type: ChecksumType,
         mock: bool,
     ) -> Result<CCTalkDevice, ClientError> {
         let temp_client: Box<dyn CCTalkClient + 'static> = match mock {
-            false => Box::new(SerialClient::new(port_name, serial_baud, address)?),
+            false => Box::new(SerialClient::new(port, address)?),
             true => Box::new(DummyClient::new()),
         };
 

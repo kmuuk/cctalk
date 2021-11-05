@@ -64,14 +64,11 @@ pub struct SerialClient {
 #[allow(dead_code)]
 impl SerialClient {
     pub fn new(
-        port_name: &String,
-        serial_baud: u32,
+        port: Box<dyn serialport::SerialPort>,
         address: Address,
     ) -> Result<SerialClient, ClientError> {
-        let port_temp = serialport::new(port_name, serial_baud).open()?;
-
         Ok(SerialClient {
-            port: port_temp,
+            port: port,
             address: address,
             buffer: Vec::<u8>::new(),
         })

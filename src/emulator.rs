@@ -26,19 +26,19 @@ pub struct CCTalkEmu {
 }
 
 impl CCTalkEmu {
-    pub fn new(
-        port_name: &String,
-        serial_baud: u32,
-        address: Address,
-        checksum_type: ChecksumType,
-    ) -> Result<CCTalkEmu, ClientError> {
+    pub fn init(serial: Box<dyn serialport::SerialPort>) -> (){
+
+    }
+    fn new(port: Box<dyn serialport::SerialPort>) -> Result<CCTalkEmu, ClientError> {
+        //Address is 2 for slave coin device
+        let address = 2u8;
         let temp_client: Box<dyn CCTalkClient + 'static> =
-            Box::new(SerialClient::new(port_name, serial_baud, address)?);
+            Box::new(SerialClient::new(port, address)?);
 //TODO: Generate coin definitions from payment options
         Ok(CCTalkEmu {
             client: temp_client,
             address: address,
-            checksum_type: checksum_type,
+            checksum_type: ChecksumType::SimpleChecksum,
             counter: 0,
             cc_equipment_cat_id: "Coin Acceptor".to_string(),
             cc_serial: 123u16,
