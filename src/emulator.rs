@@ -1,5 +1,5 @@
-use client::*;
-use protocol::*;
+use crate::client::*;
+use crate::protocol::*;
 
 #[allow(dead_code)]
 struct CoinDef {
@@ -13,7 +13,7 @@ pub struct CCTalkEmu {
     pub client: Box<dyn CCTalkClient + 'static>,
     address: Address,
     checksum_type: ChecksumType,
-    pub counter: u8,
+    counter: u8,
     cc_equipment_cat_id: String,
     cc_serial: u16,
     cc_master_inhibit: bool,
@@ -26,8 +26,10 @@ pub struct CCTalkEmu {
 }
 
 impl CCTalkEmu {
-    pub fn init(serial: Box<dyn serialport::SerialPort>) -> (){
+    pub fn init(serial: Box<dyn serialport::SerialPort>) -> Result<CCTalkEmu, ClientError> {
+        let cctalk = CCTalkEmu::new(serial);
 
+        return cctalk
     }
     fn new(port: Box<dyn serialport::SerialPort>) -> Result<CCTalkEmu, ClientError> {
         //Address is 2 for slave coin device

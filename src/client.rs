@@ -1,12 +1,10 @@
-use serialport;
-use std;
 use std::io::{Read, Write};
-// use std::error::Error;
+use std::result::Result;
 use std::convert;
 use std::io::ErrorKind::TimedOut;
 use std::time::Duration;
 
-use protocol::*;
+use crate::protocol::*;
 
 #[derive(Debug)]
 pub enum ClientError {
@@ -147,9 +145,9 @@ impl SerialClient {
     fn read_all(&mut self, timeout: u64) -> Result<Vec<Message>, ClientError> {
         let old_timeout = self.port.timeout();
 
-        self.port
-            .set_timeout(Duration::from_millis(timeout))
-            .unwrap();
+         self.port
+             .set_timeout(Duration::from_millis(timeout))
+             .unwrap();
 
         let mut messages = Vec::<Message>::new();
 
@@ -201,7 +199,8 @@ impl CCTalkClient for SerialClient {
     fn set_bill_event(&mut self, _: BillEvent) {}
 
     fn read_messages(&mut self) -> Result<Vec<Message>, ClientError> {
-        self.read_all(1)
+        //self.read_all(1)
+        self.read()
     }
 
     fn send_message(&mut self, msg: &Message) -> Result<(), ClientError> {

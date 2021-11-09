@@ -1,5 +1,5 @@
-use client::*;
-use protocol::*;
+use crate::client::*;
+use crate::protocol::*;
 
 pub struct CCTalkDevice {
     pub client: Box<dyn CCTalkClient + 'static>,
