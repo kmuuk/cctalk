@@ -1,5 +1,6 @@
 use crate::client::*;
 use crate::protocol::*;
+use std::sync::{RwLock, mpsc::channel};
 
 #[allow(dead_code)]
 struct CoinDef {
@@ -26,8 +27,24 @@ pub struct CCTalkEmu {
 }
 
 impl CCTalkEmu {
-    pub fn init(serial: Box<dyn serialport::SerialPort>) -> Result<CCTalkEmu, ClientError> {
-        let cctalk = CCTalkEmu::new(serial);
+    pub fn init(port: Box<dyn serialport::SerialPort>, amounts: &Vec<usize>) -> Result<CCTalkEmu, ClientError> {
+        let mut coin_table  = [CoinDef{ inhibit: true, coin_id: "......".to_string(), sort_path: 1u8}; 16];
+        for (channel, amount) in amounts.iter().enumerate() {
+            if *amount < 10usize {
+                coin_table[channel].coin_id = ["EU".to_string(), (*amount as u16).to_string(), "00A".to_string()].concat();
+            } else if *amount < 100usize && (*amount as u16)%10u16 == 0 {
+                coin_table[channel].coin_id = ["EU".to_string(), ((*amount as u16)/10u16).to_string(), "K0A".to_string()].concat();
+            }
+        }
+
+        let cctalk = CCTalkEmu::new(port);
+        match &cctalk {
+            Err(_e) => return cctalk,
+            Ok(_r) => ()
+        }
+        let (tx, rx) = channel();
+        let inhibit = RwLock::new(true);
+
 
         return cctalk
     }
@@ -54,7 +71,7 @@ impl CCTalkEmu {
                 CoinDef {
                     inhibit: true,
                     coin_id: "EU020A".to_string(),
-                    sort_path: 3u8,
+                    sort_path: 1u8,
                 },
                 CoinDef {
                     inhibit: true,
@@ -64,7 +81,7 @@ impl CCTalkEmu {
                 CoinDef {
                     inhibit: true,
                     coin_id: "EU100A".to_string(),
-                    sort_path: 2u8,
+                    sort_path: 1u8,
                 },
                 CoinDef {
                     inhibit: true,
