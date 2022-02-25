@@ -30,6 +30,45 @@ impl CoinInfo {
             sort_path,
         }
     }
+
+    pub fn create_string(cent_per_unit: u16, amount: u16, country_code: &'static str, variant: &'static str) -> String {
+        if !country_code.is_ascii() || country_code.is_empty() || country_code.len() != 2 as usize {
+            panic!("Invalid country code string")
+        }
+        if !variant.is_ascii() || variant.is_empty() || variant.len() != 1 as usize {
+            panic!("Invalid variant string")
+        }
+        let amount_in_cents: u16 = amount * cent_per_unit;
+        //let number_str: String;
+
+        if amount_in_cents < 1000 {
+            if amount_in_cents < 100{
+                if amount_in_cents < 10 {
+                    //number_str = [country_code.to_ascii_uppercase().as_str(), "00", amount_in_cents.to_string().as_str(), variant].concat();
+                    return [country_code.to_ascii_uppercase().as_str(), "00", amount_in_cents.to_string().as_str(), variant].concat();
+                } else {
+                    return [country_code.to_ascii_uppercase().as_str(), "0", amount_in_cents.to_string().as_str(), variant].concat();
+                }
+            } else {
+                return [country_code.to_ascii_uppercase().as_str(), amount_in_cents.to_string().as_str(), variant].concat();
+            }
+        } else {
+            if amount_in_cents < 10_000 {
+                if amount_in_cents%100 != 0 {panic!("Unsupported coin value")}
+                return [country_code.to_ascii_uppercase().as_str(),
+                    ((f32::from(amount_in_cents)/1000f32).trunc() as u16).to_string().as_str(),
+                    "K",
+                    ((amount_in_cents%1000)/100).to_string().as_str(),
+                    variant].concat();
+            } else {
+                if amount_in_cents%1000 != 0 {panic!("Unsupported coin value")}                
+                return [country_code.to_ascii_uppercase().as_str(),
+                    (amount_in_cents/1000).to_string().as_str(),
+                    "K",
+                    variant].concat();
+            }
+        }
+    }
 }
 
 /// Coin Table definition
@@ -786,5 +825,43 @@ mod tests {
         // After overflow, we must skip 0
         cctalk.add_credit(1);
         assert_eq!(cctalk.counter, 1);
+    }
+
+    #[test]
+    fn test_coin_string() {
+        let country_code = "EU";
+        let variant = "A";
+
+        assert_eq!(CoinInfo::create_string(100, 1, country_code, variant), "EU100A");
+        assert_eq!(CoinInfo::create_string(100, 5, country_code, variant), "EU500A");
+        assert_eq!(CoinInfo::create_string(100, 10, country_code, variant), "EU1K0A");
+        assert_eq!(CoinInfo::create_string(100, 25, country_code, variant), "EU2K5A");
+        assert_eq!(CoinInfo::create_string(100, 50, country_code, variant), "EU5K0A");
+        assert_eq!(CoinInfo::create_string(100, 100, country_code, variant), "EU10KA");
+
+        assert_eq!(CoinInfo::create_string(1, 50, country_code, variant), "EU050A");
+        assert_eq!(CoinInfo::create_string(1, 500, country_code, variant), "EU500A");
+        assert_eq!(CoinInfo::create_string(1, 1000, country_code, variant), "EU1K0A");
+        assert_eq!(CoinInfo::create_string(1, 2500, country_code, variant), "EU2K5A");
+        assert_eq!(CoinInfo::create_string(1, 5000, country_code, variant), "EU5K0A");
+        assert_eq!(CoinInfo::create_string(1, 6000, country_code, variant), "EU6K0A");
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_coin_string_bad_country() {
+        CoinInfo::create_string(1, 100, "EUR", "B");
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_coin_string_bad_variant(){
+        CoinInfo::create_string(1, 100, "EU", "AB");
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_coin_string_bad_value(){
+        CoinInfo::create_string(1, 1234, "EU", "C");
     }
 }
